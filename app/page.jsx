@@ -11,7 +11,7 @@ export default function Home() {
             Layanan Publik Mobile
           </h1>
           <p className="text-gray-600">
-            Sistem Layanan Publik Mobile Responsive
+            Sistem Layanan Publik Kecamatan Megamendung
           </p>
         </div>
 
