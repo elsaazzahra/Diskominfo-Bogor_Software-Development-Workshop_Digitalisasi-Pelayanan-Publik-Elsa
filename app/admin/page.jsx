@@ -19,9 +19,12 @@ export default function AdminDashboard() {
   const [submissions, setSubmissions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortKey, setSortKey] = useState("created_at_desc");
   const [chartData, setChartData] = useState([]);
   const [updatingStatus, setUpdatingStatus] = useState({}); // Track which submission is being updated
   const [refreshing, setRefreshing] = useState(false); // Track refresh loading state
+  const [adminData, setAdminData] = useState(null); // Store admin data
 
   const COLORS = ["#ffc107", "#1890ff", "#52c41a", "#ff4d4f"];
 
@@ -29,12 +32,26 @@ export default function AdminDashboard() {
     // Check if admin is logged in
     const checkAuth = () => {
       const isLoggedIn = localStorage.getItem("adminLoggedIn");
+      const adminDataStr = localStorage.getItem("adminData");
       console.log("Auth check - isLoggedIn:", isLoggedIn); // Debug log
+      
       if (!isLoggedIn) {
         console.log("Not logged in, redirecting to login"); // Debug log
         router.push("/admin/login");
         return;
       }
+
+      // Parse admin data
+      if (adminDataStr) {
+        try {
+          const admin = JSON.parse(adminDataStr);
+          setAdminData(admin);
+          console.log("Admin data loaded:", admin); // Debug log
+        } catch (error) {
+          console.error("Error parsing admin data:", error);
+        }
+      }
+
       console.log("Logged in, fetching submissions"); // Debug log
       fetchSubmissions();
     };
@@ -55,8 +72,17 @@ export default function AdminDashboard() {
       const forceRefresh = Date.now();
       const cacheBuster = Math.random().toString(36).substring(7);
 
+      const params = new URLSearchParams({
+        t: String(timestamp),
+        r: random,
+        force: String(forceRefresh),
+        cb: cacheBuster,
+        _: String(Date.now()),
+        q: searchQuery,
+        sort: sortKey,
+      });
       const response = await fetch(
-        `/api/admin/submissions?t=${timestamp}&r=${random}&force=${forceRefresh}&cb=${cacheBuster}&_=${Date.now()}`,
+        `/api/admin/submissions?${params.toString()}`,
         {
           headers: {
             "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
@@ -94,6 +120,14 @@ export default function AdminDashboard() {
   // Simple refresh function
   const handleRefresh = () => {
     fetchSubmissions(true);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSortChange = (value) => {
+    setSortKey(value);
   };
 
   const updateChartData = (data) => {
@@ -192,6 +226,7 @@ export default function AdminDashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("adminLoggedIn");
+    localStorage.removeItem("adminData");
     router.push("/admin/login");
   };
 
@@ -378,8 +413,47 @@ export default function AdminDashboard() {
                   ? "Memuat data pengajuan..."
                   : "Kelola pengajuan layanan masyarakat"}
               </p>
+              {adminData && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Login sebagai: <span className="font-medium">{adminData.username}</span> 
+                  {adminData.role && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                      {adminData.role}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <div className="flex items-center space-x-2 sm:space-x-4">
+              <div className="flex items-center space-x-2 mr-2">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="Cari nama/kode/layanan..."
+                  className="border rounded-lg px-3 py-2 text-sm"
+                />
+                <Select
+                  value={sortKey}
+                  onChange={handleSortChange}
+                  size="small"
+                  style={{ minWidth: 180 }}
+                >
+                  <Option value="created_at_desc">Terbaru</Option>
+                  <Option value="created_at_asc">Terlama</Option>
+                  <Option value="nama_asc">Nama A-Z</Option>
+                  <Option value="nama_desc">Nama Z-A</Option>
+                  <Option value="status_asc">Status A-Z</Option>
+                  <Option value="status_desc">Status Z-A</Option>
+                </Select>
+                <button
+                  onClick={() => fetchSubmissions(true)}
+                  disabled={loading}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-2 rounded-lg text-sm"
+                >
+                  Terapkan
+                </button>
+              </div>
               <button
                 onClick={handleRefresh}
                 disabled={refreshing || loading}
@@ -743,7 +817,7 @@ export default function AdminDashboard() {
               value={statusFilter}
               onChange={setStatusFilter}
               style={{ width: "100%", maxWidth: 200 }}
-              placeholder="Filter by status"
+              placeholder="Filter status"
               disabled={loading || Object.values(updatingStatus).some(Boolean)}
               loading={loading}
             >

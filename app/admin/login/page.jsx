@@ -7,11 +7,12 @@ import { message } from "antd";
 export default function AdminLogin() {
   const router = useRouter();
   const [formData, setFormData] = useState({
-    username: "",
+    email: "",
     password: "",
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,8 +28,8 @@ export default function AdminLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.username || !formData.password) {
-      setErrors({ submit: "Username dan password wajib diisi" });
+    if (!formData.email || !formData.password) {
+      setErrors({ submit: "Email dan password wajib diisi" });
       return;
     }
 
@@ -41,13 +42,24 @@ export default function AdminLogin() {
     setErrors({}); // Clear previous errors
 
     try {
-      // Simulate network delay for better UX
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Simple authentication for workshop - in production use proper auth
-      if (formData.username === "admin" && formData.password === "admin123") {
-        // Set session (in production use proper session management)
+      // Call authentication API
+      const response = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Set session with admin data
         localStorage.setItem("adminLoggedIn", "true");
+        localStorage.setItem("adminData", JSON.stringify(data.admin));
         console.log("Login successful, localStorage set"); // Debug log
         
         // Show success message
@@ -58,12 +70,12 @@ export default function AdminLogin() {
           router.push("/admin");
         }, 1000);
       } else {
-        setErrors({ submit: "Username atau password salah" });
+        setErrors({ submit: data.message || "Email atau password salah" });
         setIsSubmitting(false); // Reset loading state on error
       }
     } catch (error) {
       console.error("Login error:", error);
-      setErrors({ submit: "Terjadi kesalahan" });
+      setErrors({ submit: "Terjadi kesalahan jaringan" });
       setIsSubmitting(false); // Reset loading state on error
     }
   };
@@ -84,19 +96,19 @@ export default function AdminLogin() {
           
           <div>
             <label
-              htmlFor="username"
+              htmlFor="email"
               className="block text-sm font-medium text-gray-700 mb-2"
             >
-              Username
+              Email
             </label>
             <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
+              type="email"
+              id="email"
+              name="email"
+              value={formData.email}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black transition duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Masukkan username"
+              placeholder="Masukkan email"
             />
           </div>
 
@@ -107,15 +119,41 @@ export default function AdminLogin() {
             >
               Password
             </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-black transition duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Masukkan password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg text-black transition duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Masukkan password"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-gray-700"
+                tabIndex={0}
+              >
+                {showPassword ? (
+                  // Eye-off icon
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-10-8-10-8a18.45 18.45 0 0 1 5.06-6.94"/>
+                    <path d="M1 1l22 22"/>
+                    <path d="M9.88 9.88A3 3 0 0 0 12 15a3 3 0 0 0 2.12-.88"/>
+                    <path d="M14.12 14.12 9.88 9.88"/>
+                    <path d="M10.73 5.08A10.94 10.94 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-3.09 4.38"/>
+                  </svg>
+                ) : (
+                  // Eye icon
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 12s3-8 11-8 11 8 11 8-3 8-11 8-11-8-11-8Z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
 
           {errors.submit && (
@@ -155,7 +193,10 @@ export default function AdminLogin() {
 
         <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-sm text-yellow-800">
-            <strong>Workshop Demo:</strong> Username: admin, Password: admin123
+            <strong>Default Admin:</strong> Username: admin, Password: admin123
+          </p>
+          <p className="text-xs text-yellow-700 mt-1">
+            Jalankan <code className="bg-yellow-100 px-1 rounded">npm run create-admin</code> untuk membuat admin default
           </p>
         </div>
       </div>

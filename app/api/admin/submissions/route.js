@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Submission, initializeDatabase } from "@/lib/sequelize";
+import { Op } from "sequelize";
 
 // Initialize database on first request
 let dbInitialized = false;
@@ -17,8 +18,10 @@ export async function GET(request) {
     // In a real application, you would verify admin authentication here
     // For workshop purposes, we'll skip authentication
 
-    // Parse cache-busting query parameters
+    // Parse query parameters
     const url = new URL(request.url);
+    const q = url.searchParams.get("q") || "";
+    const sort = url.searchParams.get("sort") || "created_at_desc";
     const queryTimestamp = url.searchParams.get("t");
     const queryRandom = url.searchParams.get("r");
     const queryForce = url.searchParams.get("force");
@@ -36,14 +39,31 @@ export async function GET(request) {
       `[${new Date().toISOString()}] Query params: t=${queryTimestamp}, r=${queryRandom}, force=${queryForce}, cb=${queryCacheBuster}`
     );
 
-    // Force fresh query dengan random order strategy
-    const randomOrder = Math.random() > 0.5 ? "ASC" : "DESC";
-    console.log(
-      `[${new Date().toISOString()}] Using random order: ${randomOrder}`
-    );
+    // Build search filter
+    const where = q
+      ? {
+          [Op.or]: [
+            { tracking_code: { [Op.like]: `%${q}%` } },
+            { nama: { [Op.like]: `%${q}%` } },
+            { jenis_layanan: { [Op.like]: `%${q}%` } },
+          ],
+        }
+      : undefined;
+
+    // Build sort option
+    const sortMap = {
+      created_at_desc: ["created_at", "DESC"],
+      created_at_asc: ["created_at", "ASC"],
+      nama_asc: ["nama", "ASC"],
+      nama_desc: ["nama", "DESC"],
+      status_asc: ["status", "ASC"],
+      status_desc: ["status", "DESC"],
+    };
+    const order = [sortMap[sort] || sortMap.created_at_desc];
 
     const submissions = await Submission.findAll({
-      order: [["created_at", randomOrder]], // Random order untuk force fresh query
+      where,
+      order,
       attributes: [
         "id",
         "tracking_code",

@@ -42,9 +42,14 @@ export default function NewSubmission() {
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
+    let nextValue = type === "checkbox" ? checked : value;
+    // Enforce digits-only and max length 16 for NIK/KTP input during typing
+    if (name === "nik") {
+      nextValue = (value || "").replace(/\D/g, "").slice(0, 16);
+    }
     setFormData((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: nextValue,
     }));
     // Clear error when user starts typing
     if (errors[name]) {
@@ -60,11 +65,9 @@ export default function NewSubmission() {
     }
 
     if (!formData.nik.trim()) {
-      newErrors.nik = "NIK wajib diisi";
-    } else if (formData.nik.length !== 16) {
-      newErrors.nik = "NIK harus 16 digit";
-    } else if (!/^\d+$/.test(formData.nik)) {
-      newErrors.nik = "NIK hanya boleh berisi angka";
+      newErrors.nik = "Nomor KTP harus 16 digit";
+    } else if (!/^\d{16}$/.test(formData.nik)) {
+      newErrors.nik = "Nomor KTP harus 16 digit";
     }
 
     if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -163,7 +166,7 @@ export default function NewSubmission() {
             htmlFor="nik"
             className="block text-sm font-medium text-gray-700 mb-2"
           >
-            NIK (16 digit) *
+            Nomor KTP (16 digit) *
           </label>
           <input
             type="text"
@@ -172,10 +175,12 @@ export default function NewSubmission() {
             value={formData.nik}
             onChange={handleChange}
             maxLength={16}
+            inputMode="numeric"
+            pattern="[0-9]*"
             className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black ${
               errors.nik ? "border-red-500" : "border-gray-300"
             }`}
-            placeholder="Masukkan 16 digit NIK"
+            placeholder="Masukkan 16 digit Nomor KTP"
           />
           {errors.nik && (
             <p className="mt-1 text-sm text-red-600">{errors.nik}</p>
